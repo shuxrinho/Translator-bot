@@ -6,7 +6,7 @@ COPY src ./src
 RUN mvn clean package
 
 # Final stage
-FROM eclipse-temurin:17-jdk-slim
+FROM eclipse-temurin:17-jdk
 WORKDIR /app
 COPY --from=build /app/target/telegram-bot-1.0-SNAPSHOT.jar /app/app.jar
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]
