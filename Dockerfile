@@ -1,5 +1,5 @@
 # Build stage
-FROM eclipse-temurin:17-jdk-slim as build
+FROM eclipse-temurin:17-jdk as build
 WORKDIR /app
 COPY pom.xml .
 COPY src ./src
