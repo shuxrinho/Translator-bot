@@ -1,5 +1,5 @@
 # Use official Java 17 image as base
-FROM eclipse-temurin:17-jdk-slim
+FROM eclipse-temurin:17-jdk-slim-bullseye
 
 # Set working directory
 WORKDIR /app
