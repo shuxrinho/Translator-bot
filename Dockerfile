@@ -1,3 +1,8 @@
+# Use official Java 17 image as base
+FROM eclipse-temurin:17-jdk-slim
+
+# Set working directory
+WORKDIR /app
 
 # Copy the JAR file from your local build
 COPY target/telegram-bot-1.0-SNAPSHOT.jar /app/app.jar
