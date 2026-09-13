@@ -2,6 +2,23 @@
 
 A Python implementation of the Telegram translation bot originally written in Java.
 
+## Bot Description (for Telegram - max 512 chars)
+
+```text
+🌍 Fast & Smart Translator Bot!
+
+Instantly translate text between 50+ languages. Just send a message or use commands like /to es, /from french. Supports flexible language names (es, spanish, esp...). 
+
+Features:
+✅ Auto-detect source language
+✅ Copy translation with one tap
+✅ Clear "original → translated" format
+
+Start translating now! 🚀
+```
+
+---
+
 ## Project Structure
 
 ```

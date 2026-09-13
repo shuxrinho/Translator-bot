@@ -190,12 +190,17 @@ class MyBot:
                 )
                 
     async def send_translated_message(self, chat_id: int, original_text: str, translated: str):
-        """Send translated message with original text."""
+        """Send translated message with original text and copy button."""
         result_text = f"{original_text} → {translated}"
+        
+        # Create inline keyboard with copy button
+        keyboard = [[InlineKeyboardButton("📋 Copy Text", callback_data=f"copy:{translated}")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
         
         await self.application.bot.send_message(
             chat_id=chat_id,
             text=result_text,
+            reply_markup=reply_markup,
             parse_mode=ParseMode.MARKDOWN
         )
         
@@ -204,7 +209,10 @@ class MyBot:
         query = update.callback_query
         if query:
             await query.answer()
-            await query.edit_message_text(text=query.data)
+            # Handle copy button
+            if query.data.startswith("copy:"):
+                text_to_copy = query.data[5:]  # Remove "copy:" prefix
+                await query.answer(text=text_to_copy, show_alert=False)
             
     async def send_main_menu(self, chat_id: int):
         """Send main menu with reply keyboard."""
