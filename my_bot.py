@@ -1,16 +1,20 @@
 """
-Telegram Bot for translation using MyMemory API.
+Telegram Bot for translation using Microsoft Azure Translator API.
 """
 import os
 from telegram import Update, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton, InputFile, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
 from telegram.constants import ParseMode
+from dotenv import load_dotenv
 
-from my_memory_translator import MyMemoryTranslator
+# Load environment variables from .env file
+load_dotenv()
+
+from azure_translator import AzureTranslator
 
 
 class MyBot:
-    """A Telegram bot that translates text using MyMemory API."""
+    """A Telegram bot that translates text using Microsoft Azure Translator API."""
     
     BOT_TOKEN = "7210184880:AAGfOyS9BGkMKP-5mrFIjLaFwEM6W56P4Go"
     BOT_USERNAME = "TranslatorByShuxrinhoBot"
@@ -33,7 +37,15 @@ class MyBot:
     }
     
     def __init__(self):
-        self.translator = MyMemoryTranslator()
+        # Get Azure credentials from environment variables
+        self.azure_key = os.getenv("AZURE_TRANSLATOR_KEY")
+        self.azure_region = os.getenv("AZURE_TRANSLATOR_REGION", "westus")
+        
+        if not self.azure_key:
+            print("⚠️ Warning: AZURE_TRANSLATOR_KEY not found in environment variables!")
+            print("Please create a .env file with your Azure credentials.")
+        
+        self.translator = AzureTranslator(self.azure_key, self.azure_region)
         self.current_from_lang = "en"
         self.current_to_lang = "es"
         self.application = None
