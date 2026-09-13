@@ -2,7 +2,7 @@
 Telegram Bot for translation using MyMemory API.
 """
 import os
-from telegram import Update, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton, InputFile
+from telegram import Update, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton, InputFile, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
 from telegram.constants import ParseMode
 
@@ -15,11 +15,42 @@ class MyBot:
     BOT_TOKEN = "7210184880:AAGfOyS9BGkMKP-5mrFIjLaFwEM6W56P4Go"
     BOT_USERNAME = "TranslatorByShuxrinhoBot"
     
+    # Language code mappings (variations -> standard code)
+    LANGUAGE_VARIATIONS = {
+        'en': ['en', 'english', 'eng'],
+        'es': ['es', 'spanish', 'espanol', 'esp'],
+        'ru': ['ru', 'russian', 'rus'],
+        'uz': ['uz', 'uzbek', 'uzb'],
+        'zh': ['zh', 'chinese', 'chi', 'mandarin'],
+        'de': ['de', 'german', 'ger', 'deutsch'],
+        'fr': ['fr', 'french', 'fra'],
+        'it': ['it', 'italian', 'ita'],
+        'pt': ['pt', 'portuguese', 'por'],
+        'ja': ['ja', 'japanese', 'jpn'],
+        'ko': ['ko', 'korean', 'kor'],
+        'ar': ['ar', 'arabic', 'ara'],
+        'tr': ['tr', 'turkish', 'tur'],
+    }
+    
     def __init__(self):
         self.translator = MyMemoryTranslator()
         self.current_from_lang = "en"
         self.current_to_lang = "es"
         self.application = None
+        self.waiting_for_from_lang = False
+        self.waiting_for_to_lang = False
+        
+    def get_language_code(self, lang_input: str) -> str:
+        """Convert language input to standard code."""
+        lang_lower = lang_input.lower().strip()
+        
+        # Check if it's already a valid code
+        for code, variations in self.LANGUAGE_VARIATIONS.items():
+            if lang_lower == code or lang_lower in variations:
+                return code
+        
+        # If no match found, return the input as-is (might be a valid code we don't have mapped)
+        return lang_input
         
     async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle /start command."""
@@ -30,8 +61,8 @@ class MyBot:
         chat_id = update.effective_chat.id
         help_text = (
             "📚 Translation Bot Help:\n\n"
-            "/from [lang] - Set source language (e.g. /from en)\n"
-            "/to [lang] - Set target language (e.g. /to es)\n"
+            "/from [lang] - Set source language (e.g. /from en, /from spanish)\n"
+            "/to [lang] - Set target language (e.g. /to es, /to chinese)\n"
             "Just type text to translate!\n\n"
             f"Current settings: {self.current_from_lang} → {self.current_to_lang}"
         )
@@ -41,30 +72,36 @@ class MyBot:
         """Handle /from command to set source language."""
         chat_id = update.effective_chat.id
         if context.args and len(context.args) > 0:
-            self.current_from_lang = context.args[0]
+            lang_input = " ".join(context.args)
+            self.current_from_lang = self.get_language_code(lang_input)
             await context.bot.send_message(
                 chat_id=chat_id, 
                 text=f"Source language set to: {self.current_from_lang}"
             )
         else:
+            self.waiting_for_from_lang = True
             await context.bot.send_message(
                 chat_id=chat_id, 
-                text="Please provide a language code. Example: /from en"
+                text="Please send the source language name or code.\n"
+                     "Examples: english, en, spanish, es, russian, ru, uzbek, uz, chinese, zh"
             )
             
     async def to_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle /to command to set target language."""
         chat_id = update.effective_chat.id
         if context.args and len(context.args) > 0:
-            self.current_to_lang = context.args[0]
+            lang_input = " ".join(context.args)
+            self.current_to_lang = self.get_language_code(lang_input)
             await context.bot.send_message(
                 chat_id=chat_id, 
                 text=f"Target language set to: {self.current_to_lang}"
             )
         else:
+            self.waiting_for_to_lang = True
             await context.bot.send_message(
                 chat_id=chat_id, 
-                text="Please provide a language code. Example: /to es"
+                text="Please send the target language name or code.\n"
+                     "Examples: english, en, spanish, es, russian, ru, uzbek, uz, chinese, zh"
             )
             
     async def current_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -77,13 +114,31 @@ class MyBot:
             f"and write '/to es' if you want to change 'to' lang (e.g. it is espanol)\n"
             f"*In short, it is* {self.current_from_lang} -> {self.current_to_lang}"
         )
-        await self.send_image(chat_id, current_text)
+        await context.bot.send_message(chat_id=chat_id, text=current_text, parse_mode=ParseMode.MARKDOWN)
         
     async def handle_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle incoming text messages."""
         if update.message and update.message.text:
-            text = update.message.text
+            text = update.message.text.strip()
             chat_id = update.effective_chat.id
+            
+            # Check if waiting for language input
+            if self.waiting_for_from_lang:
+                self.waiting_for_from_lang = False
+                self.current_from_lang = self.get_language_code(text)
+                await context.bot.send_message(
+                    chat_id=chat_id,
+                    text=f"Source language set to: {self.current_from_lang}"
+                )
+                return
+            elif self.waiting_for_to_lang:
+                self.waiting_for_to_lang = False
+                self.current_to_lang = self.get_language_code(text)
+                await context.bot.send_message(
+                    chat_id=chat_id,
+                    text=f"Target language set to: {self.current_to_lang}"
+                )
+                return
             
             # Check for commands embedded in message
             if text.startswith("/start"):
@@ -92,7 +147,8 @@ class MyBot:
             elif text.startswith("/from "):
                 parts = text.split(" ")
                 if len(parts) > 1:
-                    self.current_from_lang = parts[1]
+                    lang_input = " ".join(parts[1:])
+                    self.current_from_lang = self.get_language_code(lang_input)
                     await context.bot.send_message(
                         chat_id=chat_id,
                         text=f"Source language set to: {self.current_from_lang}"
@@ -101,7 +157,8 @@ class MyBot:
             elif text.startswith("/to "):
                 parts = text.split(" ")
                 if len(parts) > 1:
-                    self.current_to_lang = parts[1]
+                    lang_input = " ".join(parts[1:])
+                    self.current_to_lang = self.get_language_code(lang_input)
                     await context.bot.send_message(
                         chat_id=chat_id,
                         text=f"Target language set to: {self.current_to_lang}"
@@ -121,7 +178,7 @@ class MyBot:
                     self.current_from_lang, 
                     self.current_to_lang
                 )
-                await self.send_translated_message_with_buttons(
+                await self.send_translated_message(
                     chat_id, 
                     text, 
                     translated
@@ -132,15 +189,14 @@ class MyBot:
                     text=f"⚠️ Error: {str(e)}"
                 )
                 
-    async def send_translated_message_with_buttons(self, chat_id: int, original_text: str, translated: str):
-        """Send translated message with inline keyboard button."""
-        keyboard = [[InlineKeyboardButton("Original Text", callback_data=original_text)]]
+    async def send_translated_message(self, chat_id: int, original_text: str, translated: str):
+        """Send translated message with original text."""
+        result_text = f"{original_text} → {translated}"
         
         await self.application.bot.send_message(
             chat_id=chat_id,
-            text=translated,
-            parse_mode=ParseMode.MARKDOWN,
-            reply_markup=InlineKeyboardMarkup(keyboard)
+            text=result_text,
+            parse_mode=ParseMode.MARKDOWN
         )
         
     async def button_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -153,15 +209,13 @@ class MyBot:
     async def send_main_menu(self, chat_id: int):
         """Send main menu with reply keyboard."""
         message_text = (
-            "Welcome to my Bot! Enjoy using it. "
-            "\nContact: @Shuxrinho\n\nIf you have any problem "
-            "with language abbreviations, here is the full list "
-            "for 5 supported languages: "
-            "\nUzbek - uz \n"
-            "English - en"
-            "\nEspanol - es"
-            "\nChinese - zh"
-            "\nRussian - ru"
+            "Welcome to the Translation Bot! 🌐\n\n"
+            "I can translate text between multiple languages.\n"
+            "Just type any text and I'll translate it for you!\n\n"
+            "Supported languages include:\n"
+            "English (en), Spanish (es), Russian (ru), Uzbek (uz), Chinese (zh)\n"
+            "and many more!\n\n"
+            "Contact: @Shuxrinho"
         )
         
         keyboard = [
@@ -180,37 +234,6 @@ class MyBot:
             chat_id=chat_id,
             text=message_text,
             reply_markup=reply_markup
-        )
-        
-    async def send_image(self, chat_id: int, caption: str):
-        """Send image from Google Drive with caption."""
-        file_id = "13zDSrCP5oGMqFJ8fz0r_AtoAELjk1EJB"
-        direct_image_url = f"https://drive.google.com/uc?export=view&id={file_id}"
-        
-        try:
-            await self.application.bot.send_photo(
-                chat_id=chat_id,
-                photo=direct_image_url,
-                caption=caption,
-                parse_mode=ParseMode.MARKDOWN_V2
-            )
-        except Exception as e:
-            print(f"Error sending photo: {e}")
-            # Fallback: send as document
-            try:
-                await self.send_as_document(chat_id)
-            except Exception as ex:
-                print(f"Error sending document: {ex}")
-                
-    async def send_as_document(self, chat_id: int):
-        """Send image as document (fallback method)."""
-        file_id = "13zDSrCP5oGMqFJ8fz0r_AtoAELjk1EJB"
-        download_url = f"https://drive.google.com/uc?export=download&id={file_id}"
-        
-        await self.application.bot.send_document(
-            chat_id=chat_id,
-            document=download_url,
-            filename="image.jpg"
         )
         
     def run(self):
