@@ -16,9 +16,28 @@ from azure_translator import AzureTranslator
 class MyBot:
     """A Telegram bot that translates text using Microsoft Azure Translator API."""
     
-    BOT_TOKEN = "7210184880:AAGfOyS9BGkMKP-5mrFIjLaFwEM6W56P4Go"
-    BOT_USERNAME = "TranslatorByShuxrinhoBot"
-    
+    def __init__(self):
+        # Get credentials from environment variables
+        self.bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+        self.azure_key = os.getenv("AZURE_TRANSLATOR_KEY")
+        self.azure_region = os.getenv("AZURE_TRANSLATOR_REGION", "westus")
+        
+        if not self.bot_token:
+            print("⚠️ Warning: TELEGRAM_BOT_TOKEN not found in environment variables!")
+            print("Please create a .env file with your Telegram bot token.")
+            
+        if not self.azure_key:
+            print("⚠️ Warning: AZURE_TRANSLATOR_KEY not found in environment variables!")
+            print("Please create a .env file with your Azure credentials.")
+        
+        self.BOT_USERNAME = "TranslatorByShuxrinhoBot"
+        self.translator = AzureTranslator(self.azure_key, self.azure_region)
+        self.current_from_lang = "en"
+        self.current_to_lang = "es"
+        self.application = None
+        self.waiting_for_from_lang = False
+        self.waiting_for_to_lang = False
+        
     # Language code mappings (variations -> standard code)
     LANGUAGE_VARIATIONS = {
         'en': ['en', 'english', 'eng'],
@@ -36,22 +55,6 @@ class MyBot:
         'tr': ['tr', 'turkish', 'tur'],
     }
     
-    def __init__(self):
-        # Get Azure credentials from environment variables
-        self.azure_key = os.getenv("AZURE_TRANSLATOR_KEY")
-        self.azure_region = os.getenv("AZURE_TRANSLATOR_REGION", "westus")
-        
-        if not self.azure_key:
-            print("⚠️ Warning: AZURE_TRANSLATOR_KEY not found in environment variables!")
-            print("Please create a .env file with your Azure credentials.")
-        
-        self.translator = AzureTranslator(self.azure_key, self.azure_region)
-        self.current_from_lang = "en"
-        self.current_to_lang = "es"
-        self.application = None
-        self.waiting_for_from_lang = False
-        self.waiting_for_to_lang = False
-        
     def get_language_code(self, lang_input: str) -> str:
         """Convert language input to standard code."""
         lang_lower = lang_input.lower().strip()
@@ -258,8 +261,12 @@ class MyBot:
         
     def run(self):
         """Run the bot."""
+        if not self.bot_token:
+            print("❌ Error: TELEGRAM_BOT_TOKEN is missing. Cannot start bot.")
+            return
+            
         # Create application
-        self.application = Application.builder().token(self.BOT_TOKEN).build()
+        self.application = Application.builder().token(self.bot_token).build()
         
         # Add handlers
         self.application.add_handler(CommandHandler("start", self.start_command))
